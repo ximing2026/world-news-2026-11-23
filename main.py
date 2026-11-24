@@ -1,45 +1,44 @@
-"""Copy the bundled poster image to the output directory.
+"""Copy the committed poster image to /output/entry.png.
 
-The entry ships a single committed picture, ``entry.png``, sitting next
-to this script. Running the program places a copy of it at
-``/output/entry.png`` so the bounty harness can pick it up.
+The bounty entry is a single pre-rendered picture, entry.png, which
+lives next to this script. Running the script simply places that file
+at the required output location.
 """
 
+import os
 import shutil
 import sys
-from pathlib import Path
 
-OUTPUT_PATH = Path("/output/entry.png")
+HERE = os.path.dirname(os.path.abspath(__file__))
+SOURCE = os.path.join(HERE, "entry.png")
+DEST_DIR = "/output"
+DEST = os.path.join(DEST_DIR, "entry.png")
+
 PNG_MAGIC = b"\x89PNG\r\n\x1a\n"
-MAX_SIZE_BYTES = 1_048_576  # 1 MiB
+MAX_BYTES = 1048576  # 1 MiB
 
 
-def check_source(source: Path) -> str | None:
-    """Return an error message if the source is not a sane PNG."""
-    try:
-        size = source.stat().st_size
-        with source.open("rb") as handle:
-            header = handle.read(len(PNG_MAGIC))
-    except OSError as exc:
-        return f"cannot read {source}: {exc}"
-    if header != PNG_MAGIC:
-        return f"{source} does not start with the PNG magic bytes"
-    if size > MAX_SIZE_BYTES:
-        return f"{source} is {size} bytes, over the 1 MiB limit"
+def check_source():
+    """Return an error message if the source is not a valid small PNG."""
+    size = os.path.getsize(SOURCE)
+    if size > MAX_BYTES:
+        return "entry.png is %d bytes, over the 1 MiB limit" % size
+    with open(SOURCE, "rb") as fh:
+        head = fh.read(len(PNG_MAGIC))
+    if head != PNG_MAGIC:
+        return "entry.png does not start with the PNG magic bytes"
     return None
 
 
-def main() -> int:
-    source = Path(__file__).resolve().parent / "entry.png"
-    problem = check_source(source)
+def main():
+    problem = check_source()
     if problem is not None:
-        print(f"error: {problem}", file=sys.stderr)
-        return 1
-    OUTPUT_PATH.parent.mkdir(parents=True, exist_ok=True)
-    shutil.copyfile(source, OUTPUT_PATH)
-    print(f"copied {source} -> {OUTPUT_PATH}")
-    return 0
+        print("error: " + problem, file=sys.stderr)
+        sys.exit(1)
+    os.makedirs(DEST_DIR, exist_ok=True)
+    shutil.copyfile(SOURCE, DEST)
+    print("wrote", DEST)
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    main()
